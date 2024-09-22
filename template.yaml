@@ -34,7 +34,7 @@ Resources:
         Type: AWS::Serverless::Function # Description: More info about Function Resource: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-function.html
         Properties:
             Handler: app.lambda_handler
-            CodeUri: app/
+            CodeUri: app
             Description: Hello World function
             Architectures:
                 - x86_64
@@ -57,7 +57,7 @@ Resources:
         Properties:
             Handler: app.lambda_handler
             Runtime: python3.12
-            CodeUri: app/
+            CodeUri: app
             MemorySize: 128
             Timeout: 3
             Role:
