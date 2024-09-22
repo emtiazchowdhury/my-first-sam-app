@@ -20,6 +20,7 @@ stack_name = "my-first-sam-stack"
 s3_prefix = "my-first-sam-stack"
 region = "us-east-1"
 image_repositories = []
+parameter_overrides = "EnvType=\"prod\""
 
 [default.package.parameters]
 resolve_s3 = true

@@ -10,8 +10,26 @@ Globals: # https://docs.aws.amazon.com/serverless-application-model/latest/devel
         Timeout: 5
         MemorySize: 128
         Runtime: python3.12
+Parameters:
+    EnvType:
+        Description: Environment type.
+        Default: dev
+        Type: String
+        AllowedValues:
+            - prod
+            - dev
+        ConstraintDescription: must specify prod or test.
+
+Conditions:
+    CreateProdResources: !Equals
+        - !Ref EnvType
+        - prod
 
 Resources:
+    ApiGatewayApi:
+        Type: AWS::Serverless::Api
+        Properties:
+            StageName: !Ref EnvType
     HelloWorldFunction:
         Type: AWS::Serverless::Function # More info about Function Resource: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-function.html
         Properties:
@@ -21,12 +39,18 @@ Resources:
             Architectures:
                 - x86_64
             Tracing: Active
+            Role:
+                Fn::GetAtt:
+                    - LambdaExecutionRole
+                    - Arn
             Events:
                 HelloPath:
                     Type: Api # More info about API Event Source: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-property-function-api.html
                     Properties:
                         Path: /hello
                         Method: GET
+                        RestApiId:
+                            Ref: ApiGatewayApi
              # Powertools env vars: https://awslabs.github.io/aws-lambda-powertools-python/#environment-variables
     CurrentDateFunction:
         Type: AWS::Serverless::Function
@@ -36,12 +60,18 @@ Resources:
             CodeUri: lambda_function
             MemorySize: 128
             Timeout: 3
+            Role:
+                Fn::GetAtt:
+                    - LambdaExecutionRole
+                    - Arn
             Events:
                 HelloPath:
                     Type: Api # More info about API Event Source: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-property-function-api.html
                     Properties:
                         Path: /currentDate
                         Method: GET
+                        RestApiId:
+                            Ref: ApiGatewayApi
             Environment:
                 Variables:
                     POWERTOOLS_SERVICE_NAME: PowertoolsHelloWorld
@@ -49,11 +79,45 @@ Resources:
                     LOG_LEVEL: INFO
             Tags:
                 LambdaPowertools: python
-
+    DynamoDBCreateFunction:
+        Type: AWS::Serverless::SimpleTable
+        Properties:
+            TableName: my-Table
+            Tags:
+                Department: Engineering
+                AppType: Serverless
+    LambdaExecutionRole:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Version: '2012-10-17'
+                Statement:
+                    - Effect: Allow
+                      Principal:
+                          Service: lambda.amazonaws.com
+                      Action: sts:AssumeRole
+            ManagedPolicyArns:
+                - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+                - arn:aws:iam::aws:policy/service-role/AWSLambdaRole
+            Policies:
+                - PolicyName: S3AccessPolicy
+                  PolicyDocument:
+                      Version: '2012-10-17'
+                      Statement:
+                          - Effect: Allow
+                            Action:
+                                - s3:GetObject
+                                - s3:PutObject
+                                - s3:DeleteObject
+                            Resource: arn:aws:s3:::myyamlfiles/*
 Outputs:
     HelloWorldApi:
       Description: "API Gateway endpoint URL for Prod environment for Hello World Function"
-      Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello"
+      Value: !Sub "https://${ApiGatewayApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello"
+
+    ApiGatewayApi:
+        Description: "API Gateway endpoint URL"
+        Value: !Sub "https://${ApiGatewayApi}.execute-api.${AWS::Region}.amazonaws.com/"
 
     HelloWorldFunction:
       Description: "Hello World Lambda Function ARN"
